@@ -4,6 +4,7 @@ module DupCheck
   ( Options(..)
   , getOptions
   , listDirectories
+  , listDuplicates
   , md5sum
   ) where
 
@@ -70,4 +71,15 @@ md5sum :: FilePath -> IO (MD5Digest, FilePath)
 md5sum file = do
   contents <- LBI.readFile file
   return (md5 contents, file)
+
+listDuplicates :: [(MD5Digest, FilePath)] -> [[FilePath]]
+listDuplicates [] = []
+listDuplicates pairs = listDups (head pairs) (tail pairs) []
+ where
+  listDups :: (MD5Digest, FilePath) -> [(MD5Digest, FilePath)] -> [[FilePath]] -> [[FilePath]]
+  listDups _ [] dups = dups
+  listDups (digest, file) list dups = listDups (head list) (tail list) $ if filtered == [] then dups else (file:filtered):dups
+   where
+    filtered :: [FilePath]
+    filtered = map snd (filter (\(key, _) -> digest == key) list)
 
