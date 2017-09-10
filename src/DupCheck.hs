@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module DupCheck
@@ -8,6 +9,7 @@ module DupCheck
   , md5sum
   ) where
 
+import Control.Exception (evaluate)
 import qualified Data.ByteString.Lazy as LBI
 import Data.Digest.Pure.MD5 ( md5
                             , MD5Digest(..)
@@ -68,9 +70,7 @@ listDirectories directories = listFiles (sortUniq $ map removeFileSeparator dire
       if b then listDirectories [path] else return [path]
 
 md5sum :: FilePath -> IO (MD5Digest, FilePath)
-md5sum file = do
-  contents <- LBI.readFile file
-  return (md5 contents, file)
+md5sum file = LBI.readFile file >>= evaluate >>= (\contents -> return (md5 contents, file))
 
 listDuplicates :: [(MD5Digest, FilePath)] -> [[FilePath]]
 listDuplicates [] = []
