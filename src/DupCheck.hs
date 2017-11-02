@@ -9,11 +9,18 @@ module DupCheck
   , md5sum
   ) where
 
-import Control.Exception (evaluate)
+import Control.Monad.ListT (ListT)
+import Control.Monad.IO.Class (liftIO)
+import Data.Binary (encode)
+import qualified Data.ByteString as BI
 import qualified Data.ByteString.Lazy as LBI
-import Data.Digest.Pure.MD5 ( md5
-                            , MD5Digest(..)
+import Data.Digest.Pure.MD5 ( MD5Digest(..)
+                            , md5
+                            , md5Finalize
+                            , md5InitialContext
+                            , md5Update
                             )
+import qualified Data.List.Class as LC
 import Data.List.Unique (sortUniq)
 import Data.Version (showVersion)
 import Paths_dupcheck (version)
@@ -24,6 +31,10 @@ import System.Console.CmdArgs ( Data
                               , cmdArgs
                               , summary
                               )
+import System.IO ( IOMode(ReadMode)
+                 , hClose
+                 , openFile
+                 )
 import System.Directory ( doesDirectoryExist
                         , listDirectory
                         )
@@ -70,7 +81,21 @@ listDirectories directories = listFiles (sortUniq $ map removeFileSeparator dire
       if b then listDirectories [path] else return [path]
 
 md5sum :: FilePath -> IO (MD5Digest, FilePath)
-md5sum file = LBI.readFile file >>= evaluate >>= (\contents -> return (md5 contents, file))
+md5sum file = LBI.readFile file >>= (\contents -> do let d = md5 contents
+                                                     print d
+                                                     return (d, file))
+
+-- hashFile :: FilePath -> IO LBI.ByteString
+-- hashFile = fmap (encode . md5Finalize) . LC.foldlL md5Update md5InitialContext . strictReadFileChunks 1024
+
+-- strictReadFileChunks :: Int -> FilePath -> ListT IO BI.ByteString
+-- strictReadFileChunks chunkSize filename =
+--   takeWhile (not . LBI.null) $ do
+--     handle <- liftIO $ openFile filename ReadMode
+--     repeat () -- this makes the lines below loop
+--     chunk <- liftIO $ LBI.hGet handle chunkSize
+--     when (LBI.null chunk) . liftIO $ hClose handle
+--     return chunk
 
 listDuplicates :: [(MD5Digest, FilePath)] -> [[FilePath]]
 listDuplicates [] = []
